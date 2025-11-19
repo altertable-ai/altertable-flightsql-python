@@ -1,0 +1,18 @@
+# Include important metadata files
+include README.md
+include LICENSE
+include pyproject.toml
+
+# Include proto files for reference
+recursive-include proto *.proto
+
+# Include type stubs
+recursive-include src/altertable_flightsql *.pyi
+include src/altertable_flightsql/py.typed
+
+# Exclude build artifacts and caches
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude *.so
+global-exclude .DS_Store
+

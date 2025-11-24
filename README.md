@@ -23,20 +23,17 @@ with Client(username="your_username", password="your_password") as client:
 
     # Process results
     for batch in reader:
-        df = batch.to_pandas()
+        df = batch.data.to_pandas()
         print(df)
 ```
 
-### Custom Connection
+### Connect to specific catalog/schema
 
 ```python
 # Connect to custom host/port
 client = Client(
     username="admin",
     password="secret",
-    host="localhost",
-    port=15002,
-    tls=False,
     catalog="my_catalog",
     schema="my_schema"
 )
@@ -48,7 +45,7 @@ client = Client(
 # Execute SELECT query
 reader = client.query("SELECT * FROM users")
 for batch in reader:
-    print(batch.to_pandas())
+    print(batch.data.to_pandas())
 
 # Execute INSERT/UPDATE/DELETE
 rows_affected = client.execute("INSERT INTO users (name) VALUES ('Alice')")
@@ -59,24 +56,18 @@ print(f"Affected {rows_affected} rows")
 
 ```python
 # Prepare once, execute multiple times
-with client.prepare("SELECT * FROM users WHERE id = ?") as stmt:
-    result = stmt.query()
+with client.prepare("SELECT * FROM users WHERE id = $id") as stmt:
+    result = stmt.query(parameters={"id": 1}))
     for batch in result:
-        print(batch.to_pandas())
+        print(batch.data.to_pandas())
 ```
 
 ### Transactions
 
 ```python
-# Begin transaction
-txn_id = client.begin_transaction()
-
-try:
-    client.execute("INSERT INTO users ...", transaction_id=txn_id)
-    client.execute("UPDATE accounts ...", transaction_id=txn_id)
-    client.commit_transaction(txn_id)
-except Exception:
-    client.rollback_transaction(txn_id)
+with client.begin_transaction():
+    client.execute("INSERT INTO users ...")
+    client.execute("UPDATE accounts ...")
 ```
 
 ### Metadata Queries
@@ -86,20 +77,7 @@ except Exception:
 catalogs = client.get_catalogs()
 schemas = client.get_schemas(catalog="my_db")
 tables = client.get_tables(catalog="my_db", schema_pattern="public")
-
-# Get primary keys
-pkeys = client.get_primary_keys("users", catalog="my_db", schema="public")
 ```
-
-## Features
-
-- 🚀 High-level Python client for Altertable
-- 🔌 Built on Apache Arrow Flight SQL
-- 🐍 Clean, Pythonic API with type hints
-- 📦 Simple installation with no build dependencies
-- 🔒 Secure authentication and transaction support
-- 📊 Easy result handling (Arrow, Pandas integration)
-- 🔧 Prepared statements and batch operations
 
 ## Development
 
@@ -107,8 +85,8 @@ pkeys = client.get_primary_keys("users", catalog="my_db", schema="public")
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/altertable-flightsql.git
-cd altertable-flightsql
+git clone https://github.com/altertable-ai/altertable-flightsql-python.git
+cd altertable-flightsql-python
 
 # Install with dev dependencies
 pip install -e ".[dev]"
@@ -143,9 +121,6 @@ See the `examples/` directory for complete examples:
 ```bash
 # High-level client examples
 python examples/client_usage.py
-
-# Low-level protocol examples (advanced)
-python examples/basic_usage.py
 ```
 
 ## Testing
@@ -222,7 +197,7 @@ Built on Apache Arrow Flight SQL protocol.
 
 ## Resources
 
-- [Altertable Documentation](https://docs.altertable.ai)
+- [Altertable](https://altertable.ai)
 - [PyArrow Documentation](https://arrow.apache.org/docs/python/)
 
 ## Acknowledgments

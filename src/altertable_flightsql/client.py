@@ -275,6 +275,55 @@ class Client:
         incremental_options: Optional[IngestIncrementalOptions] = None,
         transaction: Optional["Transaction"] = None,
     ) -> flight.FlightStreamWriter:
+        """
+        Bulk ingest data into a table using Apache Arrow Flight.
+
+        This method provides high-performance bulk data loading by streaming
+        Arrow record batches directly to the server. The writer can be used as
+        a context manager for automatic resource cleanup.
+
+        Args:
+            table_name: Name of the table to ingest data into.
+            schema: PyArrow schema defining the table structure.
+            schema_name: Optional schema name. If not provided, uses the client's
+                default schema.
+            catalog_name: Optional catalog name. If not provided, uses the client's
+                default catalog.
+            mode: Table creation/append mode. Options:
+                - CREATE: Create table, fail if it exists
+                - APPEND: Append to existing table, fail if it doesn't exist
+                - CREATE_APPEND: Create if not exists, append if exists (default)
+                - REPLACE: Drop and recreate table if it exists
+            incremental_options: Options for incremental ingestion, including:
+                - primary_key: Columns to use as primary key
+                - cursor_field: Columns used to determine which row to keep in case of conflict on primary key
+            transaction: Optional transaction to execute ingestion within.
+
+        Returns:
+            FlightStreamWriter for writing record batches to the table.
+            The writer should be closed after all data is written, or used
+            as a context manager.
+
+        Example:
+            >>> # Basic ingestion
+            >>> schema = pa.schema([("id", pa.int64()), ("name", pa.string())])
+            >>> with client.ingest(table_name="users", schema=schema) as writer:
+            ...     batch = pa.record_batch([[1, 2], ["Alice", "Bob"]], schema=schema)
+            ...     writer.write(batch)
+
+            >>> # Incremental ingestion with primary key
+            >>> from altertable_flightsql.client import IngestIncrementalOptions
+            >>> opts = IngestIncrementalOptions(
+            ...     primary_key=["id"],
+            ...     cursor_field=["updated_at"]
+            ... )
+            >>> with client.ingest(
+            ...     table_name="users",
+            ...     schema=schema,
+            ...     incremental_options=opts
+            ... ) as writer:
+            ...     writer.write(batch)
+        """
         cmd = sql_pb2.CommandStatementIngest(
             table=table_name,
             table_definition_options=self._ingest_mode_to_table_definition_options(mode),

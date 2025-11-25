@@ -271,16 +271,14 @@ class Client:
         # Parse result
         result = sql_pb2.ActionCreatePreparedStatementResult()
         _unpack_command(results[0].body.to_pybytes(), result)
-        
+
         # Extract parameter schema if available
         parameter_schema = None
         if result.parameter_schema:
             parameter_schema = pa.ipc.read_schema(pa.py_buffer(result.parameter_schema))
-        
+
         return PreparedStatement(
-            self._client, 
-            result.prepared_statement_handle,
-            parameter_schema=parameter_schema
+            self._client, result.prepared_statement_handle, parameter_schema=parameter_schema
         )
 
     def get_catalogs(self) -> flight.FlightStreamReader:
@@ -456,10 +454,10 @@ class PreparedStatement:
     """
 
     def __init__(
-        self, 
-        client: flight.FlightClient, 
+        self,
+        client: flight.FlightClient,
         handle: bytes,
-        parameter_schema: Optional[pa.Schema] = None
+        parameter_schema: Optional[pa.Schema] = None,
     ):
         """
         Initialize a prepared statement.
@@ -476,7 +474,9 @@ class PreparedStatement:
     def query(
         self,
         *,
-        parameters: Optional[Union[pa.Table, pa.RecordBatch, Mapping[str, Any], Sequence[Any]]] = None,
+        parameters: Optional[
+            Union[pa.Table, pa.RecordBatch, Mapping[str, Any], Sequence[Any]]
+        ] = None,
     ) -> flight.FlightStreamReader:
         """
         Execute the prepared statement query.
@@ -490,14 +490,14 @@ class PreparedStatement:
 
         Returns:
             FlightStreamReader with query results.
-        
+
         Example:
             >>> # Using a dictionary
             >>> stmt.query(parameters={"id": 42, "name": "Alice"})
-            
+
             >>> # Using a list
             >>> stmt.query(parameters=[42, "Alice"])
-            
+
             >>> # Using a RecordBatch
             >>> batch = pa.record_batch({"id": [42], "name": ["Alice"]})
             >>> stmt.query(parameters=batch)
@@ -533,7 +533,9 @@ class PreparedStatement:
         """Context manager exit."""
         self.close()
 
-    def _get_parameter_as_pyarrow(self, parameters: Union[pa.Table, pa.RecordBatch, Mapping[str, Any], Sequence[Any]]) -> Union[pa.Table, pa.RecordBatch]:
+    def _get_parameter_as_pyarrow(
+        self, parameters: Union[pa.Table, pa.RecordBatch, Mapping[str, Any], Sequence[Any]]
+    ) -> Union[pa.Table, pa.RecordBatch]:
         if isinstance(parameters, pa.Table):
             return parameters
         elif isinstance(parameters, pa.RecordBatch):
@@ -546,7 +548,7 @@ class PreparedStatement:
                     "Cannot use positional parameters without parameter schema. "
                     "Use a dictionary (Mapping[str, Any]) instead."
                 )
-            
+
             # Create record batch with positional parameters
             if len(parameters) != len(self._parameter_schema):
                 raise ValueError(
@@ -554,8 +556,7 @@ class PreparedStatement:
                     f"but got {len(parameters)}"
                 )
             param_dict = {
-                field.name: [value]
-                for field, value in zip(self._parameter_schema, parameters)
+                field.name: [value] for field, value in zip(self._parameter_schema, parameters)
             }
 
             return pa.record_batch(param_dict)

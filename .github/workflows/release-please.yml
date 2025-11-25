@@ -19,6 +19,6 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          # This should match your package name in pyproject.toml
           release-type: python
           package-name: altertable-flightsql
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}

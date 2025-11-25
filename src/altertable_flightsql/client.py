@@ -5,6 +5,9 @@ This module provides a high-level Python client for Altertable.
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from enum import Enum
+import json
 from typing import Any, Optional, Union
 
 import pyarrow as pa
@@ -25,6 +28,28 @@ def _unpack_command(bytes, packed):
     any_msg = any_pb2.Any()
     any_msg.ParseFromString(bytes)
     any_msg.Unpack(packed)
+
+
+class IngestTableMode(Enum):
+    """Mode for ingesting data into a table."""
+    CREATE = "CREATE"
+    """Create the table if it does not exist, fail if it does"""
+    APPEND = "APPEND"
+    """Append to the table if it exists, fail if it does not"""
+    CREATE_APPEND = "CREATE_APPEND"
+    """Create the table if it does not exist, append to it if it does"""
+    REPLACE = "REPLACE"
+    """Create the table if it does not exist, recreate it if it does"""
+
+
+@dataclass(frozen=True)
+class IngestIncrementalOptions:
+    """Options for incremental ingestion."""
+    primary_key: Sequence[str]
+    """Primary key for the table."""
+
+    cursor_field: Sequence[str]
+    """Cursor field for the table."""
 
 
 class BearerAuthMiddleware(flight.ClientMiddleware):
@@ -238,6 +263,64 @@ class Client:
             result.ParseFromString(metadata)
 
         return result.record_count
+
+    def ingest(
+        self,
+        *,
+        table_name: str,
+        schema: pa.Schema,
+        schema_name: str = "",
+        catalog_name: str = "",
+        mode: IngestTableMode = IngestTableMode.CREATE_APPEND,
+        incremental_options: Optional[IngestIncrementalOptions] = None,
+        transaction: Optional["Transaction"] = None,
+    ) -> flight.FlightStreamWriter:
+        cmd = sql_pb2.CommandStatementIngest(
+            table=table_name,
+            table_definition_options=self._ingest_mode_to_table_definition_options(mode),
+        )
+
+        if catalog_name:
+            cmd.catalog = catalog_name
+
+        if schema_name:
+            cmd.schema = schema_name
+
+        if txn_id := self._get_transaction_id(transaction):
+            cmd.transaction_id = txn_id
+
+        if incremental_options and incremental_options.primary_key:
+            cmd.options["primary_key"] = json.dumps(incremental_options.primary_key)
+
+        if incremental_options and incremental_options.cursor_field:
+            cmd.options["cursor_field"] = json.dumps(incremental_options.cursor_field)
+
+        descriptor = flight.FlightDescriptor.for_command(_pack_command(cmd))
+        writer, _ = self._client.do_put(descriptor, schema)
+
+        return writer
+
+    def _ingest_mode_to_table_definition_options(self, mode: IngestTableMode) -> sql_pb2.CommandStatementIngest.TableDefinitionOptions:
+        if mode == IngestTableMode.CREATE:
+            return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
+                if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_CREATE,
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_FAIL
+            )
+        elif mode == IngestTableMode.APPEND:
+            return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
+                if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_FAIL,
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_APPEND
+            )
+        elif mode == IngestTableMode.CREATE_APPEND:
+            return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
+                if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_CREATE,
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_APPEND
+            )
+        elif mode == IngestTableMode.REPLACE:
+            return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
+                if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_CREATE,
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_REPLACE
+            )
 
     def prepare(
         self,

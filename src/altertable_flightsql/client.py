@@ -4,10 +4,10 @@ Altertable client implementation.
 This module provides a high-level Python client for Altertable.
 """
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-import json
 from typing import Any, Optional, Union
 
 import pyarrow as pa
@@ -32,6 +32,7 @@ def _unpack_command(bytes, packed):
 
 class IngestTableMode(Enum):
     """Mode for ingesting data into a table."""
+
     CREATE = "CREATE"
     """Create the table if it does not exist, fail if it does"""
     APPEND = "APPEND"
@@ -45,6 +46,7 @@ class IngestTableMode(Enum):
 @dataclass(frozen=True)
 class IngestIncrementalOptions:
     """Options for incremental ingestion."""
+
     primary_key: Sequence[str]
     """Primary key for the table."""
 
@@ -349,26 +351,28 @@ class Client:
 
         return writer
 
-    def _ingest_mode_to_table_definition_options(self, mode: IngestTableMode) -> sql_pb2.CommandStatementIngest.TableDefinitionOptions:
+    def _ingest_mode_to_table_definition_options(
+        self, mode: IngestTableMode
+    ) -> sql_pb2.CommandStatementIngest.TableDefinitionOptions:
         if mode == IngestTableMode.CREATE:
             return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
                 if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_CREATE,
-                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_FAIL
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_FAIL,
             )
         elif mode == IngestTableMode.APPEND:
             return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
                 if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_FAIL,
-                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_APPEND
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_APPEND,
             )
         elif mode == IngestTableMode.CREATE_APPEND:
             return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
                 if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_CREATE,
-                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_APPEND
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_APPEND,
             )
         elif mode == IngestTableMode.REPLACE:
             return sql_pb2.CommandStatementIngest.TableDefinitionOptions(
                 if_not_exist=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableNotExistOption.TABLE_NOT_EXIST_OPTION_CREATE,
-                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_REPLACE
+                if_exists=sql_pb2.CommandStatementIngest.TableDefinitionOptions.TableExistsOption.TABLE_EXISTS_OPTION_REPLACE,
             )
 
     def prepare(

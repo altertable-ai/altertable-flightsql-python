@@ -5,7 +5,6 @@ Tests the ingest method for bulk data loading.
 """
 
 import pyarrow as pa
-import pytest
 
 from altertable_flightsql import Client
 from altertable_flightsql.client import IngestIncrementalOptions
@@ -23,18 +22,23 @@ class TestBasicIngest:
         fully_qualified_table = f"{test_schema.full_name}.{table_name}"
 
         # Define schema
-        schema = pa.schema([
-            ("id", pa.int64()),
-            ("name", pa.string()),
-            ("value", pa.float64()),
-        ])
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("name", pa.string()),
+                ("value", pa.float64()),
+            ]
+        )
 
         # Create test data
-        data = pa.record_batch([
-            [1, 2, 3, 4, 5],
-            ["Alice", "Bob", "Charlie", "David", "Eve"],
-            [100.5, 200.0, 300.75, 400.25, 500.5],
-        ], schema=schema)
+        data = pa.record_batch(
+            [
+                [1, 2, 3, 4, 5],
+                ["Alice", "Bob", "Charlie", "David", "Eve"],
+                [100.5, 200.0, 300.75, 400.25, 500.5],
+            ],
+            schema=schema,
+        )
 
         try:
             # Ingest data
@@ -69,10 +73,12 @@ class TestBasicIngest:
         fully_qualified_table = f"{test_schema.full_name}.{table_name}"
 
         # Define schema
-        schema = pa.schema([
-            ("id", pa.int64()),
-            ("name", pa.string()),
-        ])
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("name", pa.string()),
+            ]
+        )
 
         try:
             # Ingest data
@@ -106,6 +112,7 @@ class TestBasicIngest:
             except Exception as e:
                 print(f"Warning: Failed to drop table {fully_qualified_table}: {e}")
 
+
 class TestIngestWithPrimaryKey:
     """Test ingest with primary key specification."""
 
@@ -117,12 +124,14 @@ class TestIngestWithPrimaryKey:
         fully_qualified_table = f"{test_schema.full_name}.{table_name}"
 
         # Define schema
-        schema = pa.schema([
-            ("id", pa.int64()),
-            ("email", pa.string()),
-            ("name", pa.string()),
-            ("created_at", pa.int64()),
-        ])
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("email", pa.string()),
+                ("name", pa.string()),
+                ("created_at", pa.int64()),
+            ]
+        )
 
         try:
             # Ingest data with primary key
@@ -131,14 +140,26 @@ class TestIngestWithPrimaryKey:
                 schema=schema,
                 schema_name=test_schema.schema,
                 catalog_name=test_schema.catalog,
-                incremental_options=IngestIncrementalOptions(primary_key=["id"], cursor_field=["created_at"]),
+                incremental_options=IngestIncrementalOptions(
+                    primary_key=["id"], cursor_field=["created_at"]
+                ),
             ) as writer:
-                writer.write(pa.record_batch([
-                    [1, 2, 3, 1],
-                    ["alice@example.com", "bob@example.com", "charlie@example.com", "alice+1@example.com"],
-                    ["Alice", "Bob", "Charlie", "Alice"],
-                    [1, 2, 3, 4],
-                ], schema=schema))
+                writer.write(
+                    pa.record_batch(
+                        [
+                            [1, 2, 3, 1],
+                            [
+                                "alice@example.com",
+                                "bob@example.com",
+                                "charlie@example.com",
+                                "alice+1@example.com",
+                            ],
+                            ["Alice", "Bob", "Charlie", "Alice"],
+                            [1, 2, 3, 4],
+                        ],
+                        schema=schema,
+                    )
+                )
 
             # Verify data was ingested
             reader = altertable_client.query(f"SELECT * FROM {fully_qualified_table} ORDER BY id")
@@ -147,7 +168,11 @@ class TestIngestWithPrimaryKey:
             assert result.num_rows == 3
             result_df = result.to_pandas()
             assert list(result_df["id"]) == [1, 2, 3]
-            assert list(result_df["email"]) == ["alice+1@example.com", "bob@example.com", "charlie@example.com"]
+            assert list(result_df["email"]) == [
+                "alice+1@example.com",
+                "bob@example.com",
+                "charlie@example.com",
+            ]
             assert list(result_df["name"]) == ["Alice", "Bob", "Charlie"]
 
         finally:

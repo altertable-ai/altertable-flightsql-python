@@ -148,25 +148,33 @@ def example_bulk_ingest():
         **CONNECTION_SETTINGS,
     ) as client:
         # Define schema for the data
-        schema = pa.schema([
-            ("id", pa.int64()),
-            ("name", pa.string()),
-            ("created_at", pa.int64()),
-        ])
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("name", pa.string()),
+                ("created_at", pa.int64()),
+            ]
+        )
 
         # First batch
-        first_batch = pa.record_batch([
-            [1, 2, 3],
-            ["Alice", "Bob", "Charlie"],
-            [1000, 2000, 3000],
-        ], schema=schema)
+        first_batch = pa.record_batch(
+            [
+                [1, 2, 3],
+                ["Alice", "Bob", "Charlie"],
+                [1000, 2000, 3000],
+            ],
+            schema=schema,
+        )
 
         # Second batch with updated data (same IDs 1,2 and new ID 4)
-        second_batch = pa.record_batch([
-            [1, 2, 4],
-            ["Alice Updated", "Bob Updated", "David"],
-            [1500, 2500, 4000],
-        ], schema=schema)
+        second_batch = pa.record_batch(
+            [
+                [1, 2, 4],
+                ["Alice Updated", "Bob Updated", "David"],
+                [1500, 2500, 4000],
+            ],
+            schema=schema,
+        )
 
         with client.ingest(
             table_name="incremental_users",

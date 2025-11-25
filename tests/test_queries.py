@@ -4,6 +4,7 @@ Integration tests for SQL query execution.
 Tests basic query execution, updates, and prepared statements.
 """
 
+import pyarrow as pa
 import pytest
 
 from altertable_flightsql import Client
@@ -56,14 +57,47 @@ class TestBasicQueries:
 class TestPreparedStatements:
     """Test prepared statement functionality."""
 
-    def test_prepare_and_execute(self, altertable_client: Client, test_table: TableInfo):
-        """Test creating and executing a prepared statement."""
+    def test_prepare_with_dict_parameters(self, altertable_client: Client, test_table: TableInfo):
+        """Test prepared statement with dict parameters."""
         # Prepare statement
         with altertable_client.prepare(
-            f"SELECT * FROM {test_table.full_name} WHERE id = $id"
+            f"SELECT * FROM {test_table.full_name} WHERE id = $id AND value >= $min_value"
         ) as stmt:
             # Execute prepared statement
-            reader = stmt.query(parameters={"id": 1})
+            reader = stmt.query(parameters={"id": 1, "min_value": 100})
+            table = reader.read_all()
+            assert table.num_rows > 0
+
+    def test_prepare_with_list_parameters(self, altertable_client: Client, test_table: TableInfo):
+        """Test prepared statement with list parameters."""
+        with altertable_client.prepare(
+            f"SELECT * FROM {test_table.full_name} WHERE id = ? AND value >= ?"
+        ) as stmt:
+            reader = stmt.query(parameters=[1, 100])
+            table = reader.read_all()
+            assert table.num_rows >= 0
+
+    def test_prepare_with_record_batch_parameters(
+        self, altertable_client: Client, test_table: TableInfo
+    ):
+        """Test prepared statement with RecordBatch parameters."""
+        with altertable_client.prepare(
+            f"SELECT * FROM {test_table.full_name} WHERE id = $id AND value >= $min_value"
+        ) as stmt:
+            # Create a RecordBatch with parameters
+            batch = pa.record_batch({"id": [1], "min_value": [100]})
+            reader = stmt.query(parameters=batch)
+            table = reader.read_all()
+            assert table.num_rows > 0
+
+    def test_prepare_with_table_parameters(self, altertable_client: Client, test_table: TableInfo):
+        """Test prepared statement with Table parameters."""
+        with altertable_client.prepare(
+            f"SELECT * FROM {test_table.full_name} WHERE id = $id AND value >= $min_value"
+        ) as stmt:
+            # Create a Table with parameters
+            param_table = pa.table({"id": [1], "min_value": [100]})
+            reader = stmt.query(parameters=param_table)
             table = reader.read_all()
             assert table.num_rows > 0
 

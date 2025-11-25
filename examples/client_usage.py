@@ -98,7 +98,7 @@ def example_prepared_statement():
             # Execute with different parameters
             for user_id in [1, 2, 3]:
                 print(f"Fetching user {user_id}...")
-                reader = stmt.query(parameters={"id": user_id})
+                reader = stmt.query(parameters=[user_id])
                 for batch in reader:
                     print(batch.data.to_pandas())
 

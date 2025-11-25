@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "altertable-flightsql"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Python client library for Altertable"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -55,6 +55,9 @@ Repository = "https://github.com/yourusername/altertable-flightsql"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "altertable_flightsql.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

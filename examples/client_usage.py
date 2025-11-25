@@ -8,7 +8,10 @@ with Altertable.
 
 import os
 
+import pyarrow as pa
+
 from altertable_flightsql import Client
+from altertable_flightsql.client import IngestIncrementalOptions
 
 ALTERTABLE_HOST = os.getenv("ALTERTABLE_HOST", "flight.altertable.ai")
 ALTERTABLE_PORT = int(os.getenv("ALTERTABLE_PORT", "443"))
@@ -133,6 +136,80 @@ def example_transactions():
     print()
 
 
+def example_bulk_ingest():
+    """Bulk ingest data using Arrow Flight."""
+    print("=" * 60)
+    print("Example: Bulk Data Ingestion")
+    print("=" * 60)
+
+    with Client(
+        username=ALTERTABLE_USERNAME,
+        password=ALTERTABLE_PASSWORD,
+        **CONNECTION_SETTINGS,
+    ) as client:
+        # Define schema for the data
+        schema = pa.schema(
+            [
+                ("id", pa.int64()),
+                ("name", pa.string()),
+                ("created_at", pa.int64()),
+            ]
+        )
+
+        # First batch
+        first_batch = pa.record_batch(
+            [
+                [1, 2, 3],
+                ["Alice", "Bob", "Charlie"],
+                [1000, 2000, 3000],
+            ],
+            schema=schema,
+        )
+
+        # Second batch with updated data (same IDs 1,2 and new ID 4)
+        second_batch = pa.record_batch(
+            [
+                [1, 2, 4],
+                ["Alice Updated", "Bob Updated", "David"],
+                [1500, 2500, 4000],
+            ],
+            schema=schema,
+        )
+
+        with client.ingest(
+            table_name="incremental_users",
+            schema=schema,
+            incremental_options=IngestIncrementalOptions(
+                primary_key=["id"],
+                cursor_field=["created_at"],
+            ),
+        ) as writer:
+            writer.write(first_batch)
+
+        # Upsert with second batch
+        with client.ingest(
+            table_name="incremental_users",
+            schema=schema,
+            incremental_options=IngestIncrementalOptions(
+                primary_key=["id"],
+                cursor_field=["created_at"],
+            ),
+        ) as writer:
+            writer.write(second_batch)
+
+        # Verify - should have 4 rows (3 from first batch, 2 updated, 1 new)
+        reader = client.query("SELECT * FROM incremental_users ORDER BY id")
+        result = reader.read_pandas()
+        print(f"\nIncremental ingestion results ({len(result)} rows):")
+        print(result)
+
+        # Cleanup
+        client.execute("DROP TABLE IF EXISTS bulk_users")
+        client.execute("DROP TABLE IF EXISTS incremental_users")
+
+    print()
+
+
 def example_metadata():
     """Query database metadata."""
     print("=" * 60)
@@ -171,5 +248,6 @@ if __name__ == "__main__":
     example_updates()
     example_basic_query()
     example_transactions()
+    example_bulk_ingest()
     example_prepared_statement()
     example_metadata()

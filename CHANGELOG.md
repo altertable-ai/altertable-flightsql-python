@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.2.0...v0.2.1) (2025-11-26)
+
+
+### Bug Fixes
+
+* use a single client for handshake and queries ([#6](https://github.com/altertable-ai/altertable-flightsql-python/issues/6)) ([226e063](https://github.com/altertable-ai/altertable-flightsql-python/commit/226e063ce918bf9010cc15fb71d4c716e3bcca0b))
+
 ## [0.2.0](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.1.0...v0.2.0) (2025-11-25)
 
 

@@ -7,7 +7,6 @@
 
 * implement ingest method ([#4](https://github.com/altertable-ai/altertable-flightsql-python/issues/4)) ([b6cdf5a](https://github.com/altertable-ai/altertable-flightsql-python/commit/b6cdf5a630a6000d600ee751f5ee0f545a6ee205))
 * more permissive statement parameters ([a4d47ed](https://github.com/altertable-ai/altertable-flightsql-python/commit/a4d47ed43d618343d679ec907e2648ef92c39e5b))
-* more permissive statement parameters ([a4d47ed](https://github.com/altertable-ai/altertable-flightsql-python/commit/a4d47ed43d618343d679ec907e2648ef92c39e5b))
 
 ## 0.1.0 (2025-11-25)
 

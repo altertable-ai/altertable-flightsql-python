@@ -42,8 +42,11 @@ class AltertableContainer(DockerContainer):
         self,
         image: str = "ghcr.io/altertable-ai/altertable-mock:latest",
         port: int = 15002,
+        platform: str = "linux/amd64",
     ):
-        super().__init__(image)
+        # Force the mock service to run on linux/amd64 so Apple Silicon hosts use the
+        # correct architecture (via emulation when needed).
+        super().__init__(image, platform=platform)
         self.port = port
         self.with_exposed_ports(port)
         self.with_env("ALTERTABLE_MOCK_FLIGHT_PORT", str(port))

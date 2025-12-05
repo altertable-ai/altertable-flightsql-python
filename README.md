@@ -140,6 +140,10 @@ pip install -e ".[dev]"
 pytest tests/
 ```
 
+The mock service container is forced to run as `linux/amd64` to keep parity with CI
+and to work reliably on Apple Silicon machines (Docker Desktop will handle
+emulation automatically).
+
 **Using an existing service (CI/production):**
 
 ```bash

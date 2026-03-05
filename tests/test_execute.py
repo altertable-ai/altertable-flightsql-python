@@ -28,16 +28,12 @@ class TestExecuteRowCount:
 
     def test_delete_returns_row_count(self, altertable_client: Client, test_table: TableInfo):
         """Test that DELETE returns the number of deleted rows."""
-        rows = altertable_client.execute(
-            f"DELETE FROM {test_table.full_name} WHERE id IN (1, 2)"
-        )
+        rows = altertable_client.execute(f"DELETE FROM {test_table.full_name} WHERE id IN (1, 2)")
         assert rows == 2
 
     def test_delete_no_match_returns_zero(self, altertable_client: Client, test_table: TableInfo):
         """Test that DELETE with no matching rows returns 0."""
-        rows = altertable_client.execute(
-            f"DELETE FROM {test_table.full_name} WHERE id = 9999"
-        )
+        rows = altertable_client.execute(f"DELETE FROM {test_table.full_name} WHERE id = 9999")
         assert rows == 0
 
     def test_update_no_match_returns_zero(self, altertable_client: Client, test_table: TableInfo):

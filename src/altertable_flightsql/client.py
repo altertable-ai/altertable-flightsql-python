@@ -242,14 +242,18 @@ class Client:
 
         # Execute via DoPut
         writer, reader = self._client.do_put(descriptor, pa.schema([]))
-        writer.close()
+        # Signal end of upload while keeping the read side open to receive the
+        # server's DoPutUpdateResult metadata. writer.close() would close both
+        # sides prematurely, causing reader.read() to return None.
+        writer.done_writing()
 
         # Read result from metadata
         result = sql_pb2.DoPutUpdateResult()
         metadata = reader.read()
         if metadata:
-            result.ParseFromString(metadata)
+            result.ParseFromString(bytes(metadata))
 
+        writer.close()
         return result.record_count
 
     def ingest(

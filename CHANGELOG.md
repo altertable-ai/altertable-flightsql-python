@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.2.1...v0.2.2) (2026-04-08)
+
+
+### Bug Fixes
+
+* increase grpc max message length ([#10](https://github.com/altertable-ai/altertable-flightsql-python/issues/10)) ([50e6540](https://github.com/altertable-ai/altertable-flightsql-python/commit/50e654083c0567f08a661f2ec63f04d40bc37260))
+
 ## [0.2.1](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.2.0...v0.2.1) (2025-11-26)
 
 

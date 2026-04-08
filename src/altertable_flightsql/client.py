@@ -16,6 +16,8 @@ from google.protobuf import any_pb2
 
 from altertable_flightsql.generated import arrow_flight_sql_pb2 as sql_pb2
 
+GRPC_MAX_MESSAGE_LENGTH = 512 * 1024 * 1024
+
 
 def _pack_command(cmd) -> bytes:
     """Pack a Flight SQL command into an Any protobuf message."""
@@ -137,7 +139,14 @@ class Client:
         self._transaction = None
 
         auth_middleware = BearerAuthMiddlewareFactory()
-        self._client = flight.FlightClient(location, middleware=[auth_middleware])
+        self._client = flight.FlightClient(
+            location,
+            middleware=[auth_middleware],
+            generic_options=[
+                ("grpc.max_send_message_length", GRPC_MAX_MESSAGE_LENGTH),
+                ("grpc.max_receive_message_length", GRPC_MAX_MESSAGE_LENGTH),
+            ],
+        )
         self._client.authenticate_basic_token(self._username, self._password)
 
         options = {}

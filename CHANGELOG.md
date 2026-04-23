@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.2.2...v0.3.0) (2026-04-23)
+
+
+### Features
+
+* attach all user-allowed catalogs by default  ([#12](https://github.com/altertable-ai/altertable-flightsql-python/issues/12)) ([dd48aa5](https://github.com/altertable-ai/altertable-flightsql-python/commit/dd48aa57c3094d119a382ff3e8d06ad85cc673e9))
+
 ## [0.2.2](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.2.1...v0.2.2) (2026-04-08)
 
 

@@ -106,8 +106,8 @@ class Client:
         username: str,
         password: str,
         *,
-        catalog: Optional[str] = "altertable",
-        schema: Optional[str] = "main",
+        catalog: Optional[str] = None,
+        schema: Optional[str] = None,
         host: str = "flight.altertable.ai",
         port: int = 443,
         tls: bool = True,
@@ -119,8 +119,12 @@ class Client:
         Args:
             username: Altertable username (required).
             password: Altertable password (required).
-            catalog: Default catalog name (default: "altertable").
-            schema: Default schema name (default: "main").
+            catalog: Default catalog for the session. When ``None`` (default),
+                the server attaches every catalog the authenticated user is
+                authorized for. Pass an explicit name to bind the session to a
+                single catalog.
+            schema: Default schema for unqualified table references. When
+                ``None`` (default), no schema is pre-selected.
             host: Altertable server hostname (default: "flight.altertable.ai").
             port: Server port (default: 443).
             tls: Whether to use TLS/SSL (default: True).

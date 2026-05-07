@@ -10,6 +10,7 @@ import os
 import platform as _platform
 from collections.abc import Generator
 from dataclasses import dataclass
+from typing import Optional
 
 import pytest
 from testcontainers.core.container import DockerContainer, LogMessageWaitStrategy
@@ -17,7 +18,7 @@ from testcontainers.core.container import DockerContainer, LogMessageWaitStrateg
 from altertable_flightsql import Client
 
 
-def _default_container_platform() -> str | None:
+def _default_container_platform() -> Optional[str]:
     """
     Determine the Docker platform string to use for the mock container.
 
@@ -65,7 +66,7 @@ class AltertableContainer(DockerContainer):
         self,
         image: str = "ghcr.io/altertable-ai/altertable-mock:latest",
         port: int = 15002,
-        platform: str | None = None,
+        platform: Optional[str] = None,
     ):
         if platform is None:
             platform = _default_container_platform()

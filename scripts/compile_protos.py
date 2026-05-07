@@ -30,6 +30,7 @@ def main():
 
     # Proto files to compile
     proto_files = [
+        proto_dir / "arrow_flight.proto",
         proto_dir / "arrow_flight_sql.proto",
     ]
 
@@ -100,11 +101,13 @@ def fix_imports(output_dir: Path):
     Fix imports in generated protobuf files to use relative imports.
 
     The generated files use absolute imports like:
-        import arrow_flight_sql_pb2
+        import arrow_flight_pb2
 
     We need to change them to relative imports:
-        from . import arrow_flight_sql_pb2
+        from . import arrow_flight_pb2
     """
+    proto_modules = ("arrow_flight_pb2", "arrow_flight_sql_pb2")
+
     for py_file in output_dir.glob("*.py"):
         if py_file.name == "__init__.py":
             continue
@@ -112,13 +115,12 @@ def fix_imports(output_dir: Path):
         content = py_file.read_text()
         original_content = content
 
-        # Fix imports for our proto files
-        content = content.replace(
-            "import arrow_flight_sql_pb2 as",
-            "from . import arrow_flight_sql_pb2 as",
-        )
+        for module in proto_modules:
+            content = content.replace(
+                f"import {module} as",
+                f"from . import {module} as",
+            )
 
-        # Only write if changed
         if content != original_content:
             py_file.write_text(content)
             print(f"  Fixed imports in: {py_file.name}")

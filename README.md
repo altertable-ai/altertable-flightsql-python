@@ -140,9 +140,17 @@ pip install -e ".[dev]"
 pytest tests/
 ```
 
-The mock service container is forced to run as `linux/amd64` to keep parity with CI
-and to work reliably on Apple Silicon machines (Docker Desktop will handle
-emulation automatically).
+By default the mock service container is launched using the host's native
+architecture (`linux/arm64` on Apple Silicon, `linux/amd64` on Intel/Linux), so
+no emulation is required. To override the platform — for example to force
+`linux/amd64` for parity with CI — set `ALTERTABLE_MOCK_PLATFORM`:
+
+```bash
+ALTERTABLE_MOCK_PLATFORM=linux/amd64 pytest tests/
+```
+
+Set `ALTERTABLE_MOCK_PLATFORM=` (empty) to let Docker pick the default from the
+image manifest.
 
 **Using an existing service (CI/production):**
 

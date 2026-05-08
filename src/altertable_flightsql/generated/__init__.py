@@ -9,5 +9,6 @@ Source: https://github.com/apache/arrow
 """
 
 __all__ = [
+    "arrow_flight_pb2",
     "arrow_flight_sql_pb2",
 ]

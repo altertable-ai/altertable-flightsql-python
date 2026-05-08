@@ -14,6 +14,7 @@ import pyarrow as pa
 import pyarrow.flight as flight
 from google.protobuf import any_pb2
 
+from altertable_flightsql.generated import arrow_flight_pb2 as flight_pb2
 from altertable_flightsql.generated import arrow_flight_sql_pb2 as sql_pb2
 
 GRPC_MAX_MESSAGE_LENGTH = 512 * 1024 * 1024
@@ -155,17 +156,17 @@ class Client:
 
         options = {}
         if catalog:
-            options["catalog"] = sql_pb2.SessionOptionValue(string_value=catalog)
+            options["catalog"] = flight_pb2.SessionOptionValue(string_value=catalog)
 
         if schema:
-            options["schema"] = sql_pb2.SessionOptionValue(string_value=schema)
+            options["schema"] = flight_pb2.SessionOptionValue(string_value=schema)
 
         if options:
             self._set_options(options)
 
-    def _set_options(self, options: Mapping[str, sql_pb2.SessionOptionValue]):
-        cmd = sql_pb2.SetSessionOptionsRequest(session_options=options)
-        action = flight.Action("SetSessionOptions", _pack_command(cmd))
+    def _set_options(self, options: Mapping[str, flight_pb2.SessionOptionValue]):
+        cmd = flight_pb2.SetSessionOptionsRequest(session_options=options)
+        action = flight.Action("SetSessionOptions", cmd.SerializeToString())
         list(self._client.do_action(action))
 
     def _execute_query_command(self, cmd) -> flight.FlightStreamReader:
@@ -183,10 +184,10 @@ class Client:
         return None
 
     def set_catalog(self, catalog: str):
-        self._set_options({"catalog": sql_pb2.SessionOptionValue(string_value=catalog)})
+        self._set_options({"catalog": flight_pb2.SessionOptionValue(string_value=catalog)})
 
     def set_schema(self, schema: str):
-        self._set_options({"schema": sql_pb2.SessionOptionValue(string_value=schema)})
+        self._set_options({"schema": flight_pb2.SessionOptionValue(string_value=schema)})
 
     def query(
         self,

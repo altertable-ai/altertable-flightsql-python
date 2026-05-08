@@ -7,13 +7,37 @@ using testcontainers.
 """
 
 import os
+import platform as _platform
 from collections.abc import Generator
 from dataclasses import dataclass
+from typing import Optional
 
 import pytest
 from testcontainers.core.container import DockerContainer, LogMessageWaitStrategy
 
 from altertable_flightsql import Client
+
+
+def _default_container_platform() -> Optional[str]:
+    """
+    Determine the Docker platform string to use for the mock container.
+
+    Resolution order:
+      1. ``ALTERTABLE_MOCK_PLATFORM`` env var (set to empty string to let
+         Docker pick the default).
+      2. The host's native architecture, so Apple Silicon hosts pull the
+         arm64 variant and Intel/Linux hosts pull amd64 without emulation.
+    """
+    env_override = os.getenv("ALTERTABLE_MOCK_PLATFORM")
+    if env_override is not None:
+        return env_override or None
+
+    machine = _platform.machine().lower()
+    if machine in ("arm64", "aarch64"):
+        return "linux/arm64"
+    if machine in ("x86_64", "amd64"):
+        return "linux/amd64"
+    return None
 
 
 @dataclass(frozen=True)
@@ -42,11 +66,16 @@ class AltertableContainer(DockerContainer):
         self,
         image: str = "ghcr.io/altertable-ai/altertable-mock:latest",
         port: int = 15002,
-        platform: str = "linux/amd64",
+        platform: Optional[str] = None,
     ):
-        # Force the mock service to run on linux/amd64 so Apple Silicon hosts use the
-        # correct architecture (via emulation when needed).
-        super().__init__(image, platform=platform)
+        if platform is None:
+            platform = _default_container_platform()
+        # Only pass ``platform`` when explicitly resolved so Docker can fall back
+        # to the image's native manifest when the host arch is unknown.
+        if platform:
+            super().__init__(image, platform=platform)
+        else:
+            super().__init__(image)
         self.port = port
         self.with_exposed_ports(port)
         self.with_env("ALTERTABLE_MOCK_FLIGHT_PORT", str(port))

@@ -166,7 +166,7 @@ class Client:
 
     def _set_options(self, options: Mapping[str, flight_pb2.SessionOptionValue]):
         cmd = flight_pb2.SetSessionOptionsRequest(session_options=options)
-        action = flight.Action("SetSessionOptions", _pack_command(cmd))
+        action = flight.Action("SetSessionOptions", cmd.SerializeToString())
         list(self._client.do_action(action))
 
     def _execute_query_command(self, cmd) -> flight.FlightStreamReader:

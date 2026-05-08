@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.0...v0.3.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **proto:** split Arrow Flight SQL protos ([#14](https://github.com/altertable-ai/altertable-flightsql-python/issues/14)) ([f8634ce](https://github.com/altertable-ai/altertable-flightsql-python/commit/f8634cefae874cbc56f2eb84da29f9e767190862))
+
 ## [0.3.0](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.2.2...v0.3.0) (2026-04-23)
 
 

@@ -549,9 +549,26 @@ class Client:
         action = flight.Action("EndTransaction", _pack_command(request))
         list(self._client.do_action(action))
 
-    def close(self) -> None:
-        """Close the client connection."""
-        self._client.close()
+    def close(self, timeout_seconds: float = 10.0) -> None:
+        """Close the server session and client transport. Idempotent."""
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+        request = flight_pb2.CloseSessionRequest()
+        action = flight.Action("CloseSession", request.SerializeToString())
+        options = flight.FlightCallOptions(timeout=timeout_seconds)
+        try:
+            result = next(iter(self._client.do_action(action, options)), None)
+            if result is not None:
+                close_result = flight_pb2.CloseSessionResult.FromString(bytes(result.body))
+                if close_result.status not in (
+                    flight_pb2.CloseSessionResult.CLOSED,
+                    flight_pb2.CloseSessionResult.CLOSING,
+                ):
+                    status = flight_pb2.CloseSessionResult.Status.Name(close_result.status)
+                    raise RuntimeError(f"Server did not close Flight session: {status}")
+        finally:
+            self._client.close()
 
     def __enter__(self) -> "Client":
         """Context manager entry."""

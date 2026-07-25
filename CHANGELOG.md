@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.1...v0.3.2) (2026-07-25)
+
+
+### Bug Fixes
+
+* close Flight sessions before transport ([#16](https://github.com/altertable-ai/altertable-flightsql-python/issues/16)) ([2625d44](https://github.com/altertable-ai/altertable-flightsql-python/commit/2625d4494244e2ad24506c9a1e285c436e36376b))
+
 ## [0.3.1](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.0...v0.3.1) (2026-05-08)
 
 

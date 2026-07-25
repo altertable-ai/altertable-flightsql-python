@@ -1,3 +1,7 @@
+from types import SimpleNamespace
+
+import pyarrow.flight as flight
+import pytest
 from google.protobuf import any_pb2
 
 from altertable_flightsql.client import Client
@@ -7,10 +11,55 @@ from altertable_flightsql.generated import arrow_flight_pb2 as flight_pb2
 class FakeFlightClient:
     def __init__(self):
         self.actions = []
+        self.options = []
+        self.events = []
+        self.closed = False
+        close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.CLOSED)
+        self.action_results = [SimpleNamespace(body=close_result.SerializeToString())]
 
-    def do_action(self, action):
+    def do_action(self, action, options=None):
+        if self.closed:
+            raise RuntimeError("FlightClient is closed")
         self.actions.append(action)
-        return []
+        self.options.append(options)
+        self.events.append(("action", action.type))
+        return self.action_results
+
+    def close(self):
+        self.closed = True
+        self.events.append(("close", None))
+
+
+class FailingCloseSessionFlightClient(FakeFlightClient):
+    def do_action(self, action, options=None):
+        super().do_action(action, options)
+        raise RuntimeError("close session failed")
+
+
+def _record_call_option_timeouts(monkeypatch) -> list:
+    """`FlightCallOptions.timeout` is unreadable on older PyArrow, so record construction."""
+    timeouts = []
+    build_options = flight.FlightCallOptions
+
+    def recording_options(**kwargs):
+        timeouts.append(kwargs.get("timeout"))
+        return build_options(**kwargs)
+
+    monkeypatch.setattr(flight, "FlightCallOptions", recording_options)
+    return timeouts
+
+
+def _closed_result_then_error():
+    close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.CLOSED)
+    yield SimpleNamespace(body=close_result.SerializeToString())
+    raise RuntimeError("server failed after the first result")
+
+
+def _client_backed_by(flight_client) -> Client:
+    client = Client.__new__(Client)
+    client._client = flight_client
+    client._closed = False
+    return client
 
 
 def _action_body_bytes(action) -> bytes:
@@ -22,8 +71,7 @@ def _action_body_bytes(action) -> bytes:
 
 def test_set_options_serializes_flight_session_request_without_any():
     flight_client = FakeFlightClient()
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     session_options = {
         "catalog": flight_pb2.SessionOptionValue(string_value="test_catalog"),
@@ -38,3 +86,100 @@ def test_set_options_serializes_flight_session_request_without_any():
     assert action.type == "SetSessionOptions"
     assert _action_body_bytes(action) == request.SerializeToString()
     assert _action_body_bytes(action) != wrapped_request.SerializeToString()
+
+
+def test_close_closes_server_session_before_transport():
+    flight_client = FakeFlightClient()
+    client = _client_backed_by(flight_client)
+
+    client.close()
+
+    action = flight_client.actions[0]
+    request = flight_pb2.CloseSessionRequest()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+    assert _action_body_bytes(action) == request.SerializeToString()
+
+
+def test_close_closes_transport_when_server_session_close_fails():
+    flight_client = FailingCloseSessionFlightClient()
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="close session failed"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
+def test_close_rejects_unclosed_server_session():
+    flight_client = FakeFlightClient()
+    close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.NOT_CLOSEABLE)
+    flight_client.action_results = [SimpleNamespace(body=close_result.SerializeToString())]
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="NOT_CLOSEABLE"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
+def test_close_rejects_a_session_the_server_is_still_closing():
+    flight_client = FakeFlightClient()
+    close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.CLOSING)
+    flight_client.action_results = [SimpleNamespace(body=close_result.SerializeToString())]
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="CLOSING"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
+def test_close_is_idempotent():
+    flight_client = FakeFlightClient()
+    client = _client_backed_by(flight_client)
+
+    client.close()
+    client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
+def test_close_passes_bounded_timeout_to_do_action(monkeypatch):
+    timeouts = _record_call_option_timeouts(monkeypatch)
+    client = _client_backed_by(FakeFlightClient())
+
+    client.close()
+
+    assert timeouts == [10.0]
+
+
+def test_close_passes_caller_timeout_to_do_action(monkeypatch):
+    timeouts = _record_call_option_timeouts(monkeypatch)
+    client = _client_backed_by(FakeFlightClient())
+
+    client.close(timeout_seconds=2.5)
+
+    assert timeouts == [2.5]
+
+
+def test_close_surfaces_server_error_raised_after_the_first_result():
+    flight_client = FakeFlightClient()
+    flight_client.action_results = _closed_result_then_error()
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="server failed after the first result"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
+def test_close_rejects_empty_server_response():
+    flight_client = FakeFlightClient()
+    flight_client.action_results = []
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="no CloseSessionResult"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]

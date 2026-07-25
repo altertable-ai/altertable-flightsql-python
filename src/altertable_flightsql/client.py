@@ -142,6 +142,7 @@ class Client:
         self._password = password
         self._auto_commit = auto_commit
         self._transaction = None
+        self._closed = False
 
         auth_middleware = BearerAuthMiddlewareFactory()
         self._client = flight.FlightClient(
@@ -549,9 +550,24 @@ class Client:
         action = flight.Action("EndTransaction", _pack_command(request))
         list(self._client.do_action(action))
 
-    def close(self) -> None:
-        """Close the client connection."""
-        self._client.close()
+    def close(self, timeout_seconds: float = 10.0) -> None:
+        """Close the server session and client transport. Idempotent."""
+        if self._closed:
+            return
+        self._closed = True
+        request = flight_pb2.CloseSessionRequest()
+        action = flight.Action("CloseSession", request.SerializeToString())
+        options = flight.FlightCallOptions(timeout=timeout_seconds)
+        try:
+            results = list(self._client.do_action(action, options))
+            if not results:
+                raise RuntimeError("Server returned no CloseSessionResult")
+            close_result = flight_pb2.CloseSessionResult.FromString(bytes(results[0].body))
+            if close_result.status != flight_pb2.CloseSessionResult.CLOSED:
+                status = flight_pb2.CloseSessionResult.Status.Name(close_result.status)
+                raise RuntimeError(f"Server did not close Flight session: {status}")
+        finally:
+            self._client.close()
 
     def __enter__(self) -> "Client":
         """Context manager entry."""

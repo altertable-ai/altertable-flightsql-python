@@ -36,6 +36,13 @@ class FailingCloseSessionFlightClient(FakeFlightClient):
         raise RuntimeError("close session failed")
 
 
+def _client_backed_by(flight_client) -> Client:
+    client = Client.__new__(Client)
+    client._client = flight_client
+    client._closed = False
+    return client
+
+
 def _action_body_bytes(action) -> bytes:
     body = action.body
     if hasattr(body, "to_pybytes"):
@@ -45,8 +52,7 @@ def _action_body_bytes(action) -> bytes:
 
 def test_set_options_serializes_flight_session_request_without_any():
     flight_client = FakeFlightClient()
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     session_options = {
         "catalog": flight_pb2.SessionOptionValue(string_value="test_catalog"),
@@ -65,8 +71,7 @@ def test_set_options_serializes_flight_session_request_without_any():
 
 def test_close_closes_server_session_before_transport():
     flight_client = FakeFlightClient()
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     client.close()
 
@@ -79,8 +84,7 @@ def test_close_closes_server_session_before_transport():
 
 def test_close_closes_transport_when_server_session_close_fails():
     flight_client = FailingCloseSessionFlightClient()
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     with pytest.raises(RuntimeError, match="close session failed"):
         client.close()
@@ -92,8 +96,7 @@ def test_close_rejects_unclosed_server_session():
     flight_client = FakeFlightClient()
     close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.NOT_CLOSEABLE)
     flight_client.action_results = [SimpleNamespace(body=close_result.SerializeToString())]
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     with pytest.raises(RuntimeError, match="NOT_CLOSEABLE"):
         client.close()
@@ -103,8 +106,7 @@ def test_close_rejects_unclosed_server_session():
 
 def test_close_is_idempotent():
     flight_client = FakeFlightClient()
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     client.close()
     client.close()
@@ -114,8 +116,7 @@ def test_close_is_idempotent():
 
 def test_close_passes_bounded_timeout_to_do_action():
     flight_client = FakeFlightClient()
-    client = Client.__new__(Client)
-    client._client = flight_client
+    client = _client_backed_by(flight_client)
 
     client.close()
 

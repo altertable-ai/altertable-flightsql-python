@@ -142,6 +142,7 @@ class Client:
         self._password = password
         self._auto_commit = auto_commit
         self._transaction = None
+        self._closed = False
 
         auth_middleware = BearerAuthMiddlewareFactory()
         self._client = flight.FlightClient(
@@ -551,7 +552,7 @@ class Client:
 
     def close(self, timeout_seconds: float = 10.0) -> None:
         """Close the server session and client transport. Idempotent."""
-        if getattr(self, "_closed", False):
+        if self._closed:
             return
         self._closed = True
         request = flight_pb2.CloseSessionRequest()

@@ -36,6 +36,25 @@ class FailingCloseSessionFlightClient(FakeFlightClient):
         raise RuntimeError("close session failed")
 
 
+def _record_call_option_timeouts(monkeypatch) -> list:
+    """`FlightCallOptions.timeout` is unreadable on older PyArrow, so record construction."""
+    timeouts = []
+    build_options = flight.FlightCallOptions
+
+    def recording_options(**kwargs):
+        timeouts.append(kwargs.get("timeout"))
+        return build_options(**kwargs)
+
+    monkeypatch.setattr(flight, "FlightCallOptions", recording_options)
+    return timeouts
+
+
+def _closed_result_then_error():
+    close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.CLOSED)
+    yield SimpleNamespace(body=close_result.SerializeToString())
+    raise RuntimeError("server failed after the first result")
+
+
 def _client_backed_by(flight_client) -> Client:
     client = Client.__new__(Client)
     client._client = flight_client
@@ -114,10 +133,41 @@ def test_close_is_idempotent():
     assert flight_client.events == [("action", "CloseSession"), ("close", None)]
 
 
-def test_close_passes_bounded_timeout_to_do_action():
-    flight_client = FakeFlightClient()
-    client = _client_backed_by(flight_client)
+def test_close_passes_bounded_timeout_to_do_action(monkeypatch):
+    timeouts = _record_call_option_timeouts(monkeypatch)
+    client = _client_backed_by(FakeFlightClient())
 
     client.close()
 
-    assert isinstance(flight_client.options[0], flight.FlightCallOptions)
+    assert timeouts == [10.0]
+
+
+def test_close_passes_caller_timeout_to_do_action(monkeypatch):
+    timeouts = _record_call_option_timeouts(monkeypatch)
+    client = _client_backed_by(FakeFlightClient())
+
+    client.close(timeout_seconds=2.5)
+
+    assert timeouts == [2.5]
+
+
+def test_close_surfaces_server_error_raised_after_the_first_result():
+    flight_client = FakeFlightClient()
+    flight_client.action_results = _closed_result_then_error()
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="server failed after the first result"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
+def test_close_rejects_empty_server_response():
+    flight_client = FakeFlightClient()
+    flight_client.action_results = []
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="no CloseSessionResult"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]

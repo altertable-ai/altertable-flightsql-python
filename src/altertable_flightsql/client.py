@@ -559,15 +559,16 @@ class Client:
         action = flight.Action("CloseSession", request.SerializeToString())
         options = flight.FlightCallOptions(timeout=timeout_seconds)
         try:
-            result = next(iter(self._client.do_action(action, options)), None)
-            if result is not None:
-                close_result = flight_pb2.CloseSessionResult.FromString(bytes(result.body))
-                if close_result.status not in (
-                    flight_pb2.CloseSessionResult.CLOSED,
-                    flight_pb2.CloseSessionResult.CLOSING,
-                ):
-                    status = flight_pb2.CloseSessionResult.Status.Name(close_result.status)
-                    raise RuntimeError(f"Server did not close Flight session: {status}")
+            results = list(self._client.do_action(action, options))
+            if not results:
+                raise RuntimeError("Server returned no CloseSessionResult")
+            close_result = flight_pb2.CloseSessionResult.FromString(bytes(results[0].body))
+            if close_result.status not in (
+                flight_pb2.CloseSessionResult.CLOSED,
+                flight_pb2.CloseSessionResult.CLOSING,
+            ):
+                status = flight_pb2.CloseSessionResult.Status.Name(close_result.status)
+                raise RuntimeError(f"Server did not close Flight session: {status}")
         finally:
             self._client.close()
 

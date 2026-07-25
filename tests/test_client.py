@@ -123,6 +123,18 @@ def test_close_rejects_unclosed_server_session():
     assert flight_client.events == [("action", "CloseSession"), ("close", None)]
 
 
+def test_close_rejects_a_session_the_server_is_still_closing():
+    flight_client = FakeFlightClient()
+    close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.CLOSING)
+    flight_client.action_results = [SimpleNamespace(body=close_result.SerializeToString())]
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(RuntimeError, match="CLOSING"):
+        client.close()
+
+    assert flight_client.events == [("action", "CloseSession"), ("close", None)]
+
+
 def test_close_is_idempotent():
     flight_client = FakeFlightClient()
     client = _client_backed_by(flight_client)

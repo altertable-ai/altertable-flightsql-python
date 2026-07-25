@@ -563,10 +563,7 @@ class Client:
             if not results:
                 raise RuntimeError("Server returned no CloseSessionResult")
             close_result = flight_pb2.CloseSessionResult.FromString(bytes(results[0].body))
-            if close_result.status not in (
-                flight_pb2.CloseSessionResult.CLOSED,
-                flight_pb2.CloseSessionResult.CLOSING,
-            ):
+            if close_result.status != flight_pb2.CloseSessionResult.CLOSED:
                 status = flight_pb2.CloseSessionResult.Status.Name(close_result.status)
                 raise RuntimeError(f"Server did not close Flight session: {status}")
         finally:

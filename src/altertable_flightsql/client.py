@@ -697,7 +697,18 @@ class PreparedStatement:
         elif isinstance(parameters, pa.RecordBatch):
             return parameters
         elif isinstance(parameters, Mapping):
-            return pa.record_batch({key: [value] for (key, value) in parameters.items()})
+            return pa.RecordBatch.from_pydict(
+                {
+                    key: (
+                        pa.array([value], type=self._parameter_schema.field(key).type)
+                        if value is None
+                        and self._parameter_schema is not None
+                        and key in self._parameter_schema.names
+                        else [value]
+                    )
+                    for key, value in parameters.items()
+                }
+            )
         elif isinstance(parameters, Sequence):
             if self._parameter_schema is None:
                 raise ValueError(
@@ -711,10 +722,11 @@ class PreparedStatement:
                     f"Expected {len(self._parameter_schema)} parameters, but got {len(parameters)}"
                 )
             param_dict = {
-                field.name: [value] for field, value in zip(self._parameter_schema, parameters)
+                field.name: pa.array([value], type=field.type) if value is None else [value]
+                for field, value in zip(self._parameter_schema, parameters)
             }
 
-            return pa.record_batch(param_dict)
+            return pa.RecordBatch.from_pydict(param_dict)
         else:
             raise TypeError(
                 f"Unsupported parameter type: {type(parameters)}. "

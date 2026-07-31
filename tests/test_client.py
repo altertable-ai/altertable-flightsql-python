@@ -1,10 +1,11 @@
 from types import SimpleNamespace
 
+import pyarrow as pa
 import pyarrow.flight as flight
 import pytest
 from google.protobuf import any_pb2
 
-from altertable_flightsql.client import Client
+from altertable_flightsql.client import Client, PreparedStatement
 from altertable_flightsql.generated import arrow_flight_pb2 as flight_pb2
 
 
@@ -67,6 +68,24 @@ def _action_body_bytes(action) -> bytes:
     if hasattr(body, "to_pybytes"):
         return body.to_pybytes()
     return bytes(body)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [None],
+        {"amount": None},
+    ],
+    ids=["positional", "mapping"],
+)
+def test_python_null_parameters_use_prepared_type(values):
+    parameter_schema = pa.schema([("amount", pa.float64())])
+    statement = PreparedStatement(None, b"handle", parameter_schema=parameter_schema)
+
+    parameters = statement._get_parameter_as_pyarrow(values)
+
+    assert parameters.schema.equals(parameter_schema)
+    assert parameters.to_pydict() == {"amount": [None]}
 
 
 def test_set_options_serializes_flight_session_request_without_any():

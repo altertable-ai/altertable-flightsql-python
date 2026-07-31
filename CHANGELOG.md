@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.2...v0.3.3) (2026-07-31)
+
+
+### Bug Fixes
+
+* **client:** preserve prepared null parameter types ([#18](https://github.com/altertable-ai/altertable-flightsql-python/issues/18)) ([bb0ebfd](https://github.com/altertable-ai/altertable-flightsql-python/commit/bb0ebfde045f26712c547d74064de8c36e135c1e))
+
 ## [0.3.2](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.1...v0.3.2) (2026-07-25)
 
 

@@ -67,7 +67,7 @@ def example_updates():
     ) as client:
         # Create table
         client.execute(
-            "CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY, name VARCHAR, age INT)"
+            "CREATE TABLE IF NOT EXISTS users (id INT, name VARCHAR, age INT)"
         )
 
         # Insert

@@ -46,6 +46,25 @@ class IngestTableMode(Enum):
     """Create the table if it does not exist, recreate it if it does"""
 
 
+class ComputeSize(str, Enum):
+    """Compute size of the worker backing a session."""
+
+    XS = "XS"
+    S = "S"
+    M = "M"
+    L = "L"
+    XL = "XL"
+    XXL = "2XL"
+    XXXL = "3XL"
+    XXXXL = "4XL"
+
+
+def _compute_size_value(compute_size: Union[ComputeSize, str]) -> str:
+    if isinstance(compute_size, ComputeSize):
+        return compute_size.value
+    return compute_size
+
+
 @dataclass(frozen=True)
 class IngestIncrementalOptions:
     """Options for incremental ingestion."""
@@ -113,6 +132,7 @@ class Client:
         port: int = 443,
         tls: bool = True,
         auto_commit: bool = False,
+        compute_size: Optional[Union[ComputeSize, str]] = None,
     ):
         """
         Initialize an Altertable client.
@@ -130,6 +150,8 @@ class Client:
             port: Server port (default: 443).
             tls: Whether to use TLS/SSL (default: True).
             auto_commit: Whether to auto-commit transactions (default: False).
+            compute_size: Compute size for the session (e.g. ``ComputeSize.L``
+                or ``"L"``). When ``None``, the server default is used.
         """
 
         # Build location URI
@@ -162,13 +184,27 @@ class Client:
         if schema:
             options["schema"] = flight_pb2.SessionOptionValue(string_value=schema)
 
+        if compute_size:
+            options["compute_size"] = flight_pb2.SessionOptionValue(
+                string_value=_compute_size_value(compute_size)
+            )
+
         if options:
             self._set_options(options)
 
     def _set_options(self, options: Mapping[str, flight_pb2.SessionOptionValue]):
         cmd = flight_pb2.SetSessionOptionsRequest(session_options=options)
         action = flight.Action("SetSessionOptions", cmd.SerializeToString())
-        list(self._client.do_action(action))
+        results = list(self._client.do_action(action))
+        if not results:
+            return
+        result = flight_pb2.SetSessionOptionsResult.FromString(bytes(results[0].body))
+        if result.errors:
+            details = ", ".join(
+                f"{name}: {flight_pb2.SetSessionOptionsResult.ErrorValue.Name(err.value)}"
+                for name, err in result.errors.items()
+            )
+            raise ValueError(f"Failed to set session options ({details})")
 
     def _execute_query_command(self, cmd) -> flight.FlightStreamReader:
         """Execute a Flight SQL query command and return the result stream."""
@@ -189,6 +225,21 @@ class Client:
 
     def set_schema(self, schema: str):
         self._set_options({"schema": flight_pb2.SessionOptionValue(string_value=schema)})
+
+    def set_compute_size(self, compute_size: Union[ComputeSize, str]):
+        """
+        Set the compute size of the session.
+
+        The size is fixed when the session first runs a query, so this only
+        takes effect if called before the first query.
+        """
+        self._set_options(
+            {
+                "compute_size": flight_pb2.SessionOptionValue(
+                    string_value=_compute_size_value(compute_size)
+                )
+            }
+        )
 
     def query(
         self,

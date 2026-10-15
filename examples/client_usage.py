@@ -66,9 +66,7 @@ def example_updates():
         **CONNECTION_SETTINGS,
     ) as client:
         # Create table
-        client.execute(
-            "CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY, name VARCHAR, age INT)"
-        )
+        client.execute("CREATE TABLE IF NOT EXISTS users (id INT, name VARCHAR, age INT)")
 
         # Insert
         rows = client.execute("INSERT INTO users (id, name, age) VALUES (1, 'Alice', 25)")

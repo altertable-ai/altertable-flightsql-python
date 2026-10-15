@@ -39,6 +39,17 @@ client = Client(
 )
 ```
 
+### Compute size
+
+```python
+from altertable_flightsql import Client, ComputeSize
+
+client = Client(username="admin", password="secret", compute_size=ComputeSize.L)
+```
+
+The size is fixed when the session runs its first query, so set it in the
+constructor or call `client.set_compute_size(...)` before querying.
+
 ### Queries and Updates
 
 ```python

@@ -5,7 +5,7 @@ import pyarrow.flight as flight
 import pytest
 from google.protobuf import any_pb2
 
-from altertable_flightsql.client import Client, PreparedStatement
+from altertable_flightsql.client import Client, ComputeSize, PreparedStatement
 from altertable_flightsql.generated import arrow_flight_pb2 as flight_pb2
 
 
@@ -17,10 +17,16 @@ class FakeFlightClient:
         self.closed = False
         close_result = flight_pb2.CloseSessionResult(status=flight_pb2.CloseSessionResult.CLOSED)
         self.action_results = [SimpleNamespace(body=close_result.SerializeToString())]
+        self.set_options_result = flight_pb2.SetSessionOptionsResult()
 
     def do_action(self, action, options=None):
         if self.closed:
             raise RuntimeError("FlightClient is closed")
+        if action.type == "SetSessionOptions":
+            self.actions.append(action)
+            self.options.append(options)
+            self.events.append(("action", action.type))
+            return [SimpleNamespace(body=self.set_options_result.SerializeToString())]
         self.actions.append(action)
         self.options.append(options)
         self.events.append(("action", action.type))
@@ -105,6 +111,47 @@ def test_set_options_serializes_flight_session_request_without_any():
     assert action.type == "SetSessionOptions"
     assert _action_body_bytes(action) == request.SerializeToString()
     assert _action_body_bytes(action) != wrapped_request.SerializeToString()
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [(ComputeSize.XXL, "2XL"), ("m", "m"), (ComputeSize.XS, "XS")],
+)
+def test_set_compute_size_sends_string_option(value, expected):
+    flight_client = FakeFlightClient()
+    client = _client_backed_by(flight_client)
+
+    client.set_compute_size(value)
+
+    request = flight_pb2.SetSessionOptionsRequest.FromString(
+        _action_body_bytes(flight_client.actions[0])
+    )
+    assert request.session_options["compute_size"].string_value == expected
+
+
+def test_set_options_raises_on_server_error():
+    flight_client = FakeFlightClient()
+    flight_client.set_options_result.errors["compute_size"].value = (
+        flight_pb2.SetSessionOptionsResult.INVALID_VALUE
+    )
+    client = _client_backed_by(flight_client)
+
+    with pytest.raises(ValueError, match="compute_size: INVALID_VALUE"):
+        client.set_compute_size("AUTO")
+
+
+def test_constructor_sends_compute_size(monkeypatch):
+    flight_client = FakeFlightClient()
+    flight_client.authenticate_basic_token = lambda *a: None
+    monkeypatch.setattr(flight, "FlightClient", lambda *a, **k: flight_client)
+
+    Client("u", "p", catalog="c", compute_size=ComputeSize.L)
+
+    request = flight_pb2.SetSessionOptionsRequest.FromString(
+        _action_body_bytes(flight_client.actions[0])
+    )
+    assert request.session_options["compute_size"].string_value == "L"
+    assert request.session_options["catalog"].string_value == "c"
 
 
 def test_close_closes_server_session_before_transport():

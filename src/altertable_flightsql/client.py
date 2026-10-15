@@ -59,12 +59,6 @@ class ComputeSize(str, Enum):
     XXXXL = "4XL"
 
 
-def _compute_size_value(compute_size: Union[ComputeSize, str]) -> str:
-    if isinstance(compute_size, ComputeSize):
-        return compute_size.value
-    return compute_size
-
-
 @dataclass(frozen=True)
 class IngestIncrementalOptions:
     """Options for incremental ingestion."""
@@ -185,9 +179,7 @@ class Client:
             options["schema"] = flight_pb2.SessionOptionValue(string_value=schema)
 
         if compute_size:
-            options["compute_size"] = flight_pb2.SessionOptionValue(
-                string_value=_compute_size_value(compute_size)
-            )
+            options["compute_size"] = flight_pb2.SessionOptionValue(string_value=compute_size)
 
         if options:
             self._set_options(options)
@@ -234,11 +226,7 @@ class Client:
         takes effect if called before the first query.
         """
         self._set_options(
-            {
-                "compute_size": flight_pb2.SessionOptionValue(
-                    string_value=_compute_size_value(compute_size)
-                )
-            }
+            {"compute_size": flight_pb2.SessionOptionValue(string_value=compute_size)}
         )
 
     def query(

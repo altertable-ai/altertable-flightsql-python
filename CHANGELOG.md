@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.3...v0.4.0) (2026-10-15)
+
+
+### Features
+
+* **client:** support setting session compute size ([#20](https://github.com/altertable-ai/altertable-flightsql-python/issues/20)) ([ace2ff0](https://github.com/altertable-ai/altertable-flightsql-python/commit/ace2ff0d64753f1e148151ac525b6c4e4791ddb6))
+
 ## [0.3.3](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.2...v0.3.3) (2026-07-31)
 
 

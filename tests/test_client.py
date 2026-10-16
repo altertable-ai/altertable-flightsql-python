@@ -154,6 +154,27 @@ def test_constructor_sends_compute_size(monkeypatch):
     assert request.session_options["catalog"].string_value == "c"
 
 
+def test_constructor_enables_grpc_keepalive(monkeypatch):
+    flight_client = FakeFlightClient()
+    flight_client.authenticate_basic_token = lambda *a: None
+    flight_client_kwargs = {}
+
+    def build_flight_client(*args, **kwargs):
+        flight_client_kwargs.update(kwargs)
+        return flight_client
+
+    monkeypatch.setattr(flight, "FlightClient", build_flight_client)
+
+    Client("u", "p")
+
+    generic_options = flight_client_kwargs["generic_options"]
+    assert ("grpc.keepalive_time_ms", 30_000) in generic_options
+    assert ("grpc.keepalive_timeout_ms", 20_000) in generic_options
+    assert ("grpc.http2.ping_timeout_ms", 20_000) in generic_options
+    assert ("grpc.keepalive_permit_without_calls", 1) in generic_options
+    assert ("grpc.http2.max_pings_without_data", 0) in generic_options
+
+
 def test_close_closes_server_session_before_transport():
     flight_client = FakeFlightClient()
     client = _client_backed_by(flight_client)

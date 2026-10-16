@@ -30,18 +30,12 @@ class BlockingFlightServer:
             futures.ThreadPoolExecutor(max_workers=4),
             options=[("grpc.http2.max_ping_strikes", 0)],
         )
+        handlers = {
+            "Handshake": grpc.stream_stream_rpc_method_handler(self._handshake),
+            "GetFlightInfo": grpc.unary_unary_rpc_method_handler(self._get_flight_info),
+        }
         self._server.add_generic_rpc_handlers(
-            (
-                grpc.method_handlers_generic_handler(
-                    "arrow.flight.protocol.FlightService",
-                    {
-                        "Handshake": grpc.stream_stream_rpc_method_handler(self._handshake),
-                        "GetFlightInfo": grpc.unary_unary_rpc_method_handler(
-                            self._get_flight_info
-                        ),
-                    },
-                ),
-            )
+            (grpc.method_handlers_generic_handler("arrow.flight.protocol.FlightService", handlers),)
         )
         self.port = self._server.add_insecure_port("127.0.0.1:0")
         self._server.start()

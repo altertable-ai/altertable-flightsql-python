@@ -171,8 +171,8 @@ class Client:
                 ("grpc.max_receive_message_length", GRPC_MAX_MESSAGE_LENGTH),
                 ("grpc.keepalive_time_ms", GRPC_KEEPALIVE_TIME_MS),
                 ("grpc.keepalive_timeout_ms", GRPC_KEEPALIVE_TIMEOUT_MS),
-                # The gRPC bundled with pyarrow times keepalive pings out after ping_timeout_ms
-                # (default 60s), not keepalive_timeout_ms.
+                # The gRPC bundled with recent pyarrow releases times keepalive pings out after
+                # ping_timeout_ms (default 60s), not keepalive_timeout_ms.
                 ("grpc.http2.ping_timeout_ms", GRPC_KEEPALIVE_TIMEOUT_MS),
                 ("grpc.keepalive_permit_without_calls", 1),
                 # The client sends no data while a statement runs, and gRPC otherwise stops

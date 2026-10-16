@@ -2,7 +2,9 @@ import contextlib
 import socket
 import threading
 import time
+from concurrent import futures
 
+import grpc
 import pyarrow.flight as flight
 import pytest
 
@@ -14,40 +16,49 @@ KEEPALIVE_MS = 1000
 HEALTHY_SECONDS = 5
 
 
-class BearerTokenServerMiddleware(flight.ServerMiddleware):
-    def sending_headers(self):
-        return {"authorization": "Bearer test-token"}
+class BlockingFlightServer:
+    """Flight server whose GetFlightInfo blocks like a long-running statement.
 
-
-class BearerTokenServerMiddlewareFactory(flight.ServerMiddlewareFactory):
-    def start_call(self, info, headers):
-        return BearerTokenServerMiddleware()
-
-
-class NoopAuthHandler(flight.ServerAuthHandler):
-    def authenticate(self, outgoing, incoming):
-        pass
-
-    def is_valid(self, token):
-        return ""
-
-
-class BlockingFlightServer(flight.FlightServerBase):
-    """Flight server whose GetFlightInfo blocks like a long-running statement."""
+    Built on grpcio rather than pyarrow so it can accept frequent client pings like the
+    production server; some pyarrow servers reject them with a "too_many_pings" GOAWAY.
+    """
 
     def __init__(self):
-        super().__init__(
-            "grpc://127.0.0.1:0",
-            auth_handler=NoopAuthHandler(),
-            middleware={"auth": BearerTokenServerMiddlewareFactory()},
-        )
         self.statement_started = threading.Event()
         self.release = threading.Event()
+        self._server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=4),
+            options=[("grpc.http2.max_ping_strikes", 0)],
+        )
+        self._server.add_generic_rpc_handlers(
+            (
+                grpc.method_handlers_generic_handler(
+                    "arrow.flight.protocol.FlightService",
+                    {
+                        "Handshake": grpc.stream_stream_rpc_method_handler(self._handshake),
+                        "GetFlightInfo": grpc.unary_unary_rpc_method_handler(
+                            self._get_flight_info
+                        ),
+                    },
+                ),
+            )
+        )
+        self.port = self._server.add_insecure_port("127.0.0.1:0")
+        self._server.start()
 
-    def get_flight_info(self, context, descriptor):
+    def shutdown(self):
+        self._server.stop(grace=None)
+
+    def _handshake(self, requests, context):
+        for _ in requests:
+            pass
+        context.send_initial_metadata((("authorization", "Bearer test-token"),))
+        return iter(())
+
+    def _get_flight_info(self, request, context):
         self.statement_started.set()
         self.release.wait(timeout=60)
-        raise flight.FlightCancelledError("released")
+        context.abort(grpc.StatusCode.CANCELLED, "released")
 
 
 class FreezableProxy:

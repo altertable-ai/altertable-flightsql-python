@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.4.0...v0.4.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **client:** detect dead connections with gRPC keepalive ([#23](https://github.com/altertable-ai/altertable-flightsql-python/issues/23)) ([3247b66](https://github.com/altertable-ai/altertable-flightsql-python/commit/3247b661aa5b3ff899e055fd1e652c7b08d3dbbe))
+
 ## [0.4.0](https://github.com/altertable-ai/altertable-flightsql-python/compare/v0.3.3...v0.4.0) (2026-10-15)
 
 

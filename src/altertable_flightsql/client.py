@@ -18,6 +18,8 @@ from altertable_flightsql.generated import arrow_flight_pb2 as flight_pb2
 from altertable_flightsql.generated import arrow_flight_sql_pb2 as sql_pb2
 
 GRPC_MAX_MESSAGE_LENGTH = 512 * 1024 * 1024
+GRPC_KEEPALIVE_TIME_MS = 30_000
+GRPC_KEEPALIVE_TIMEOUT_MS = 20_000
 
 
 def _pack_command(cmd) -> bytes:
@@ -167,6 +169,15 @@ class Client:
             generic_options=[
                 ("grpc.max_send_message_length", GRPC_MAX_MESSAGE_LENGTH),
                 ("grpc.max_receive_message_length", GRPC_MAX_MESSAGE_LENGTH),
+                ("grpc.keepalive_time_ms", GRPC_KEEPALIVE_TIME_MS),
+                ("grpc.keepalive_timeout_ms", GRPC_KEEPALIVE_TIMEOUT_MS),
+                # The gRPC bundled with pyarrow times keepalive pings out after ping_timeout_ms
+                # (default 60s), not keepalive_timeout_ms.
+                ("grpc.http2.ping_timeout_ms", GRPC_KEEPALIVE_TIMEOUT_MS),
+                ("grpc.keepalive_permit_without_calls", 1),
+                # The client sends no data while a statement runs, and gRPC otherwise stops
+                # pinging after two pings without data.
+                ("grpc.http2.max_pings_without_data", 0),
             ],
         )
         self._client.authenticate_basic_token(self._username, self._password)
